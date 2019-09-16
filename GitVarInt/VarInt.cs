@@ -36,17 +36,10 @@ namespace GitVarInt
             stream.WriteVarInt(ZigZagEncode(value));
         }
 
-        public static void WriteVarInt(this Stream stream, uint value)
+        public static unsafe void WriteVarInt(this Stream stream, uint value)
         {
-            var buf = GetVarIntBuffer(value);
-            stream.Write(buf, 0, buf.Length);
-        }
-
-        private static byte[] GetVarIntBuffer(uint value)
-        {
-            int length = GetVarIntLength(value);
-            var buffer = new byte[length];
-            int offset = length;
+            var buffer = stackalloc byte[5];
+            int offset = 5;
 
             buffer[--offset] = (byte)(value & 0x7F);
 
@@ -55,19 +48,10 @@ namespace GitVarInt
                 buffer[--offset] = (byte)(0x80 | (--value & 0x7F));
             }
 
-            return buffer;
-        }
-
-        private static int GetVarIntLength(long value)
-        {
-            int length = 1;
-
-            for (; (value >>= 7) != 0; length++)
+            while (offset < 5)
             {
-                --value;
+                stream.WriteByte(buffer[offset++]);
             }
-
-            return length;
         }
 
         public static uint ZigZagEncode(int value)
