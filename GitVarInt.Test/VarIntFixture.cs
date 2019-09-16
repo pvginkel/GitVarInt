@@ -95,27 +95,6 @@ namespace GitVarInt.Test
             Assert.AreEqual(value, GetHexDecoded(hex, p => p.ReadVarInt64()));
         }
 
-        [Test]
-        public void VarInt32Roundtrip()
-        {
-            using (var stream = new MemoryStream())
-            {
-                for (int i = 0; ; i++)
-                {
-                    stream.Position = 0;
-                    stream.WriteVarInt(i);
-
-                    stream.Position = 0;
-                    int read = stream.ReadVarInt32();
-
-                    Assert.AreEqual(i, read);
-
-                    if (i == int.MaxValue)
-                        break;
-                }
-            }
-        }
-
         private static string GetHexEncoded(Action<Stream> func)
         {
             byte[] buffer;
