@@ -11,28 +11,34 @@ namespace GitVarInt.Test
     [TestFixture]
     public class VarIntFixture
     {
-        [Test]
-        public void ZigZagEncode()
+        [TestCase(0u, 0)]
+        [TestCase(1u, -1)]
+        [TestCase(2u, 1)]
+        [TestCase(3u, -2)]
+        [TestCase(4u, 2)]
+        [TestCase(5u, -3)]
+        [TestCase(6u, 3)]
+        [TestCase(uint.MaxValue - 1, int.MaxValue)]
+        [TestCase(uint.MaxValue, int.MinValue)]
+        public void ZigZagInt32(uint encoded, int value)
         {
-            Assert.AreEqual(0, VarInt.ZigZagEncode(0));
-            Assert.AreEqual(1, VarInt.ZigZagEncode(-1));
-            Assert.AreEqual(2, VarInt.ZigZagEncode(1));
-            Assert.AreEqual(3, VarInt.ZigZagEncode(-2));
-            Assert.AreEqual(4, VarInt.ZigZagEncode(2));
-            Assert.AreEqual(5, VarInt.ZigZagEncode(-3));
-            Assert.AreEqual(6, VarInt.ZigZagEncode(3));
+            Assert.AreEqual(encoded, VarInt.ZigZagEncode(value));
+            Assert.AreEqual(value, VarInt.ZigZagDecode(encoded));
         }
 
-        [Test]
-        public void ZigZagDecode()
+        [TestCase(0u, 0)]
+        [TestCase(1u, -1)]
+        [TestCase(2u, 1)]
+        [TestCase(3u, -2)]
+        [TestCase(4u, 2)]
+        [TestCase(5u, -3)]
+        [TestCase(6u, 3)]
+        [TestCase(ulong.MaxValue - 1, long.MaxValue)]
+        [TestCase(ulong.MaxValue, long.MinValue)]
+        public void ZigZagInt64(ulong encoded, long value)
         {
-            Assert.AreEqual(0, VarInt.ZigZagDecode(0));
-            Assert.AreEqual(-1, VarInt.ZigZagDecode(1));
-            Assert.AreEqual(1, VarInt.ZigZagDecode(2));
-            Assert.AreEqual(-2, VarInt.ZigZagDecode(3));
-            Assert.AreEqual(2, VarInt.ZigZagDecode(4));
-            Assert.AreEqual(-3, VarInt.ZigZagDecode(5));
-            Assert.AreEqual(3, VarInt.ZigZagDecode(6));
+            Assert.AreEqual(encoded, VarInt.ZigZagEncode(value));
+            Assert.AreEqual(value, VarInt.ZigZagDecode(encoded));
         }
 
         [TestCase("0x00", 0u)]
@@ -49,6 +55,65 @@ namespace GitVarInt.Test
         {
             Assert.AreEqual(hex, GetHexEncoded(p => p.WriteVarInt(value)));
             Assert.AreEqual(value, GetHexDecoded(hex, p => p.ReadVarUInt32()));
+        }
+
+        [TestCase("0x00", 0)]
+        [TestCase("0x01", -1)]
+        [TestCase("0x02", 1)]
+        [TestCase("0x8EFEFEFE7E", int.MaxValue)]
+        [TestCase("0x8EFEFEFE7F", int.MinValue)]
+        public void VarInt32(string hex, int value)
+        {
+            Assert.AreEqual(hex, GetHexEncoded(p => p.WriteVarInt(value)));
+            Assert.AreEqual(value, GetHexDecoded(hex, p => p.ReadVarInt32()));
+        }
+
+        [TestCase("0x00", 0ul)]
+        [TestCase("0x01", 1ul)]
+        [TestCase("0x7F", 127ul)]
+        [TestCase("0x8000", 128ul)]
+        [TestCase("0x8100", 256ul)]
+        [TestCase("0xFF7F", 16511ul)]
+        [TestCase("0x808000", 16512ul)]
+        [TestCase("0xFFFF7F", 2113663ul)]
+        [TestCase("0x80808000", 2113664ul)]
+        [TestCase("0x80FEFEFEFEFEFEFEFE7F", ulong.MaxValue)]
+        public void VarUInt64(string hex, ulong value)
+        {
+            Assert.AreEqual(hex, GetHexEncoded(p => p.WriteVarInt(value)));
+            Assert.AreEqual(value, GetHexDecoded(hex, p => p.ReadVarUInt64()));
+        }
+
+        [TestCase("0x00", 0l)]
+        [TestCase("0x01", -1l)]
+        [TestCase("0x02", 1l)]
+        [TestCase("0x80FEFEFEFEFEFEFEFE7E", long.MaxValue)]
+        [TestCase("0x80FEFEFEFEFEFEFEFE7F", long.MinValue)]
+        public void VarInt64(string hex, long value)
+        {
+            Assert.AreEqual(hex, GetHexEncoded(p => p.WriteVarInt(value)));
+            Assert.AreEqual(value, GetHexDecoded(hex, p => p.ReadVarInt64()));
+        }
+
+        [Test]
+        public void VarInt32Roundtrip()
+        {
+            using (var stream = new MemoryStream())
+            {
+                for (int i = 0; ; i++)
+                {
+                    stream.Position = 0;
+                    stream.WriteVarInt(i);
+
+                    stream.Position = 0;
+                    int read = stream.ReadVarInt32();
+
+                    Assert.AreEqual(i, read);
+
+                    if (i == int.MaxValue)
+                        break;
+                }
+            }
         }
 
         private static string GetHexEncoded(Action<Stream> func)
